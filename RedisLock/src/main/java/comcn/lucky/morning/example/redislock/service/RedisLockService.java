@@ -16,9 +16,8 @@ public interface RedisLockService {
      * 加锁
      *
      * @param key 锁名
-     * @return 是否成功
      */
-    boolean lock(String key);
+    void lock(String key);
 
     /**
      * 解锁

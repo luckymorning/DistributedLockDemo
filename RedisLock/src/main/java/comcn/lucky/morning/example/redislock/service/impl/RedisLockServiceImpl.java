@@ -3,6 +3,7 @@ package comcn.lucky.morning.example.redislock.service.impl;
 import comcn.lucky.morning.example.redislock.service.RedisLockService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.TimeUnit;
@@ -17,12 +18,17 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class RedisLockServiceImpl implements RedisLockService {
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    private StringRedisTemplate redisTemplate;
 
     @Override
-    public boolean lock(String key) {
+    public void lock(String key) {
         long threadId = Thread.currentThread().getId();
-        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, this.getNameByThreadId(threadId), 30000, TimeUnit.MILLISECONDS));
+        while (true) {
+            Boolean result = redisTemplate.opsForValue().setIfAbsent(key, this.getNameByThreadId(threadId), 30000, TimeUnit.MILLISECONDS);
+            if (Boolean.TRUE.equals(result)) {
+                return;
+            }
+        }
     }
 
     @Override
