@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: redis-lock
+  redis:
+    database: 0
+    host: localhost
+    port: 6379
+    password:
+    timeout: 10000
+
+server:
+  port: 8001
