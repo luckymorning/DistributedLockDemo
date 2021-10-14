@@ -2,6 +2,8 @@ package comcn.lucky.morning.example.redislock;
 
 import comcn.lucky.morning.example.redislock.service.RedisLockService;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -12,10 +14,12 @@ import java.util.concurrent.TimeUnit;
 
 @SpringBootTest
 class RedisLockApplicationTests {
+    private static int storage = 100000;
     @Autowired
     private RedisLockService redisLockService;
+    @Autowired
+    private RedissonClient redissonClient;
 
-    int storage = 100000;
 
     @Test
     public void testLock() throws InterruptedException {
@@ -62,13 +66,41 @@ class RedisLockApplicationTests {
             executor.execute(() -> {
                 try {
                     redisLockService.lock(key);
-
                     storage = storage - 1;
                     System.out.println("减库存成功：" + storage);
                     if (!redisLockService.unlock(key)) {
                         System.out.println("解锁失败！");
                     }
                 } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        System.out.println("执行完毕,当前库存：" + storage);
+    }
+
+    @Test
+    public void bugGoodsOnRedissonLock() throws InterruptedException {
+        String redisKeyPre = "lock:redis:";
+        String key = redisKeyPre + "1";
+        int maxCoreSize = 1000;
+        int maxCount = storage;
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(maxCoreSize, maxCoreSize, 1000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(maxCount));
+        CountDownLatch latch = new CountDownLatch(maxCount);
+
+        for (int index = 0; index < maxCount; index++) {
+            executor.execute(() -> {
+                RLock lock = null;
+                try {
+                    lock = redissonClient.getLock(key);
+                    lock.lock();
+                    storage = storage - 1;
+                    System.out.println("减库存成功：" + storage);
+                } finally {
+                    if (lock != null && lock.isLocked()) {
+                        lock.unlock();
+                    }
                     latch.countDown();
                 }
             });

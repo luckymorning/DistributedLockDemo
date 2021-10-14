@@ -23,8 +23,15 @@ public class RedisLockServiceImpl implements RedisLockService {
     @Override
     public void lock(String key) {
         long threadId = Thread.currentThread().getId();
+        String value = this.getNameByThreadId(threadId);
+
+        Boolean result = redisTemplate.opsForValue().setIfAbsent(key, value, 30000, TimeUnit.MILLISECONDS);
+        if (Boolean.TRUE.equals(result)) {
+            return;
+        }
+
         while (true) {
-            Boolean result = redisTemplate.opsForValue().setIfAbsent(key, this.getNameByThreadId(threadId), 30000, TimeUnit.MILLISECONDS);
+            result = redisTemplate.opsForValue().setIfAbsent(key, value, 30000, TimeUnit.MILLISECONDS);
             if (Boolean.TRUE.equals(result)) {
                 return;
             }
@@ -33,16 +40,17 @@ public class RedisLockServiceImpl implements RedisLockService {
 
     @Override
     public boolean unlock(String key) {
-        long threadId = Thread.currentThread().getId();
-        String rName = redisTemplate.opsForValue().get(key);
-        if (rName == null) {
-            throw new RuntimeException("锁不存在");
-        }
-        String name = this.getNameByThreadId(threadId);
-        if (name.equals(rName)) {
-            return Boolean.TRUE.equals(redisTemplate.delete(key));
-        }
-        return false;
+        return Boolean.TRUE.equals(redisTemplate.delete(key));
+//        long threadId = Thread.currentThread().getId();
+//        String rName = redisTemplate.opsForValue().get(key);
+//        if (rName == null) {
+//            throw new RuntimeException("锁不存在");
+//        }
+//        String name = this.getNameByThreadId(threadId);
+//        if (name.equals(rName)) {
+//            return Boolean.TRUE.equals(redisTemplate.delete(key));
+//        }
+//        return false;
     }
 
     @Override
